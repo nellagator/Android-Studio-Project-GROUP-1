@@ -20,10 +20,11 @@ try {
 // Get parameters from either GET or POST
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $id = $_GET['id'] ?? $_POST['id'] ?? '0';
+$reason = $_GET['reason'] ?? $_POST['reason'] ?? '';
 $appId = (int)$id;
 
 // Debug output
-error_log("Action: $action, ID: $id, Parsed ID: $appId");
+error_log("Action: $action, ID: $id, Parsed ID: $appId, Reason: $reason");
 
 if (empty($action) || $appId <= 0) {
     echo json_encode([
@@ -42,15 +43,18 @@ if (!in_array($action, ['approve', 'reject'])) {
 }
 
 try {
-    $newStatus = ($action === 'approve') ? 'approved' : 'rejected';
-    
-    $stmt = $pdo->prepare("UPDATE loan_applications SET status = ? WHERE id = ? AND status = 'endorsed'");
-    $stmt->execute([$newStatus, $appId]);
+    if ($action === 'approve') {
+        $stmt = $pdo->prepare("UPDATE loan_applications SET status = 'approved', approved_at = NOW() WHERE id = ? AND status = 'endorsed'");
+        $stmt->execute([$appId]);
+    } else { // reject
+        $stmt = $pdo->prepare("UPDATE loan_applications SET status = 'rejected', rejection_reason = ?, rejected_at = NOW() WHERE id = ? AND status = 'endorsed'");
+        $stmt->execute([$reason, $appId]);
+    }
     
     if ($stmt->rowCount() > 0) {
         echo json_encode(['success' => true, 'message' => "Loan $action" . "d successfully"]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Application not found or already processed']);
+        echo json_encode(['success' => false, 'error' => 'Application not found, not endorsed, or already processed']);
     }
     
 } catch (Exception $e) {

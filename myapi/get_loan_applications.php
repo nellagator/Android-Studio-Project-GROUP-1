@@ -4,7 +4,7 @@ header("Content-Type: application/json");
 $conn = new mysqli("localhost", "root", "", "loandb");
 
 if ($conn->connect_error) {
-    echo json_encode(["error" => "Database connection failed"]);
+    echo json_encode(["loans" => [], "error" => "Database connection failed"]);
     exit();
 }
 
@@ -22,7 +22,8 @@ status,
 applied_at,
 endorsed_at,
 approved_at,
-rejected_at
+rejected_at,
+rejection_reason
 FROM loan_applications
 ORDER BY applied_at DESC";
 
@@ -36,7 +37,10 @@ if ($result) {
     }
 }
 
-echo json_encode($data);
+// Debug: show field names
+error_log("Fields: " . implode(", ", array_keys($data[0] ?? [])));
+
+echo json_encode(["loans" => $data]);
 
 $conn->close();
 ?>
